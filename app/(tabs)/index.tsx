@@ -1,98 +1,205 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
+import axios, { AxiosError } from "axios";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+// ⚠️ CRITICAL: Replace this with your computer's actual IPv4 address
+const BACKEND_URL = "http://169.254.208.179:5000/api/wallet";
+// Define the shape of the data coming from your Node backend
+interface WalletResponse {
+  user: {
+    first_name: string;
+    last_name: string;
+    virtual_account_number: string;
+    trust_score: number;
+  };
+}
 
-export default function HomeScreen() {
+export default function App() {
+  // Pass the interface to useState
+  const [walletData, setWalletData] = useState<WalletResponse | null>(null);
+  
+  // ... rest of your code
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleCreateWallet = async () => {
+    if (!firstName || !lastName || !phoneNumber) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Making the POST request to your Node.js backend
+      const response = await axios.post(`${BACKEND_URL}/create-account`, {
+        firstName,
+        lastName,
+        phoneNumber,
+      });
+
+      // If successful, save the data to state to update the UI
+      setWalletData(response.data);
+      Alert.alert("Success!", "Emergency Wallet Created");
+    } catch (error) {
+      console.error(error);
+      const axiosError = error as AxiosError<{ error: string }>;
+      Alert.alert(
+        "API Error",
+        axiosError.response?.data?.error || "Could not connect to server",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // If wallet is created, show the Dashboard view
+  if (walletData) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.header}>InstantCare Dashboard</Text>
+        <View style={styles.card}>
+          <Text style={styles.label}>Account Name:</Text>
+          <Text style={styles.value}>
+            {walletData.user.first_name} {walletData.user.last_name}
+          </Text>
+
+          <Text style={styles.label}>Squad Virtual Account:</Text>
+          <Text style={styles.accountNumber}>
+            {walletData.user.virtual_account_number}
+          </Text>
+
+          <Text style={styles.label}>Trust Score:</Text>
+          <Text style={styles.scoreGauge}>
+            {walletData.user.trust_score} / 100
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Otherwise, show the Onboarding view
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      <Text style={styles.header}>Join InstantCare</Text>
+      <Text style={styles.subHeader}>Emergency Health Financing</Text>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <TextInput
+        style={styles.input}
+        placeholder="First Name"
+        value={firstName}
+        onChangeText={setFirstName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Last Name"
+        value={lastName}
+        onChangeText={setLastName}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Phone Number (e.g., 08012345678)"
+        value={phoneNumber}
+        onChangeText={setPhoneNumber}
+        keyboardType="phone-pad"
+      />
+
+      <TouchableOpacity
+        style={styles.button}
+        onPress={handleCreateWallet}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Create Smart Wallet</Text>
+        )}
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#f4f7f6",
+    padding: 20,
+    justifyContent: "center",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#2c3e50",
+    marginBottom: 5,
+    textAlign: "center",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  subHeader: {
+    fontSize: 16,
+    color: "#7f8c8d",
+    marginBottom: 30,
+    textAlign: "center",
+  },
+  input: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: "#e74c3c", // Emergency Red
+    padding: 18,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 15,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  label: {
+    fontSize: 14,
+    color: "#7f8c8d",
+    marginTop: 15,
+  },
+  value: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#2c3e50",
+  },
+  accountNumber: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#27ae60", // Money Green
+    letterSpacing: 2,
+    marginTop: 5,
+  },
+  scoreGauge: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#2980b9", // Trust Blue
+    marginTop: 5,
   },
 });
